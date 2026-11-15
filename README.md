@@ -1,5 +1,7 @@
 # SHIELD DJ Standard
 
+**Codex was used to generate the code**
+
 Lecteur MP3 et OGG pour 3DS, pensé pour Old 3DS et 2DS. Il affiche les pochettes, permet de parcourir la carte SD et propose pitch, profils de basses, réverbération, filtres audio et lecture aléatoire. Le code a été généré avec l'aide de Codex ; Shield-77 conçoit l'application et la teste sur console.
 
 ## Télécharger
