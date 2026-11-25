@@ -6,7 +6,7 @@ Lecteur MP3 et OGG pour 3DS, pensé pour Old 3DS et 2DS. Il affiche les pochette
 
 ## Télécharger
 
-La dernière release est **[v1.0.36](https://github.com/Shield-77/Shield-DJ-standard-/releases/tag/v1.0.36)**. Installer `ShieldDJStandard.cia` depuis cette release. Le Title ID est `000400000A210300` ; l'application peut coexister avec SHIELD DJ Lite.
+La dernière release est **[v1.0.38](https://github.com/Shield-77/Shield-DJ-standard-/releases/tag/v1.0.38)**. Installer [`ShieldDJStandard.cia`](https://github.com/Shield-77/Shield-DJ-standard-/releases/download/v1.0.38/ShieldDJStandard.cia) depuis cette release. Le Title ID est `000400000A210300` ; l'application peut coexister avec SHIELD DJ Lite.
 
 La v1.0.36 ajoute une réverbération prolongée facultative, désactivée par défaut, et corrige le temps affiché quand le pitch change. Les versions précédentes ont ajouté sept filtres et le réglage tactile de la réverbération. Voir les [notes techniques](DEVELOPMENT.md) pour l'historique détaillé.
 
