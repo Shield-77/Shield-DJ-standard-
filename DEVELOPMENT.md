@@ -1,6 +1,6 @@
 # Shield DJ Standard by Shield-77
 
-Build version: v1.0.36 (CIA title version 1060).
+Current source: v1.0.38 (CIA title version 1062). The notes below also cover earlier versions.
 
 Version 1.0.36 adds an optional long reverb decay alongside the existing
 custom/preset switch in Options. It is off by default. Playback time now

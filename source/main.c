@@ -85,7 +85,7 @@ static bool touch_seek_dragging;
 static int brightness_level = 3;
 static u8 backlight_config[2] = {0, 3};
 static bool cfgu_service_ready, backlight_config_valid;
-static bool lcd_ready, brightness_changed;
+static bool brightness_changed;
 static u16 cover_pixels[COVER_SIZE * COVER_SIZE];
 static u8 id3_text_buffer[4096];
 static bool cover_valid;
@@ -357,7 +357,6 @@ static float speed = 1.0f;
 static int pitch_milli = 1000;
 static unsigned audio_boost_mode;
 static int32_t boost_gain_q15 = 32768;
-static u64 last_home_toggle_ms;
 static int base_rate = 44100;
 static int applied_output_rate, target_output_rate;
 
@@ -391,6 +390,7 @@ static bool touch_reverb_custom_drag;
 static unsigned touch_reverb_preview;
 static const char *const reverb_names[] = { "Off", "Concert", "Cathedrale", "Extra" };
 static unsigned filter_profile;
+static unsigned filter_last_profile=1;
 static const char *const filter_names_fr[] = { "Aucun", "Rock", "Pop", "Jazz", "Clair", "Exterieur", "Classique" };
 static const char *const filter_names_en[] = { "None", "Rock", "Pop", "Jazz", "Clear", "Outdoor", "Classical" };
 static int32_t filter_low_state[2], filter_high_state[2];
@@ -400,6 +400,7 @@ static int32_t reverb_wet_current_q15;
 static int32_t reverb_dry_current_q15 = 32768;
 static bool options_open;
 static unsigned options_selection;
+static bool options_credits_open;
 static int32_t reverb_comb[2][4][REVERB_BUFFER_SIZE];
 static int32_t reverb_damping[2][4];
 static int32_t reverb_allpass[2][3][REVERB_AP_BUFFER_SIZE];
@@ -1615,9 +1616,9 @@ static void draw_guide(void) {
                              {"A","B","L / R","Circle Pad"},
                              {"Circle Pad","Y / SELECT","X","Pitch"}};
         const char *l[3][4]={
-            {"MP3 / OGG Vorbis","Interface soignee, console stable.","Plus leger, pour consoles fatiguees.","Fichiers audio dans des dossiers SD."},
+            {"MP3 / OGG Vorbis","Interface soignee, console stable.","Plus leger, pour consoles fatiguees.","SD : racine ou dossiers = bibliotheques."},
             {"Lire / pause / reprendre.","Stopper / revenir en arriere.","Morceau precedent / suivant.","Pad gauche : tour droite verrouille."},
-            {"Tour gauche : deverrouille L/R.","Options : filtres, reverb prolongee.","Aleatoire liste / repetition piste.","G/D pitch; haut/bas luminosite."}
+            {"Tour gauche : deverrouille L/R.","SELECT : filtres, boost et reverb.","HOME : menu de la console.","G/D pitch; haut/bas luminosite."}
         };
         memcpy(titles,t,sizeof(t)); memcpy(keys,k,sizeof(k)); memcpy(lines,l,sizeof(l));
     } else {
@@ -1626,9 +1627,9 @@ static void draw_guide(void) {
                              {"A","B","L / R","Circle Pad"},
                              {"Circle Pad","Y / SELECT","X","Pitch"}};
         const char *l[3][4]={
-            {"MP3 / OGG Vorbis","Polished UI, healthy console.","Lightweight for older consoles.","Audio files go in SD folders."},
+            {"MP3 / OGG Vorbis","Polished UI, healthy console.","Lightweight for older consoles.","SD root or folders = music libraries."},
             {"Play / pause / resume.","Stop / return to library.","Previous / next track.","Left Circle Pad: clockwise locks."},
-            {"Counter-clockwise unlocks L/R.","Options: filters, long reverb.","Shuffle library / repeat track.","L/R pitch; up/down brightness."}
+            {"Counter-clockwise unlocks L/R.","SELECT: filters, boost, reverb.","HOME: system menu.","L/R pitch; up/down brightness."}
         };
         memcpy(titles,t,sizeof(t)); memcpy(keys,k,sizeof(k)); memcpy(lines,l,sizeof(l));
     }
@@ -1810,7 +1811,7 @@ static void draw_top_ui(void) {
                      51, 8, UI_DEPTH, header_scale, header_scale, white);
     }
     ui_text(buf, "~ DJ", 51 + shield_width + 3, 8, 0.70f, cyan, C2D_AlignLeft);
-    ui_text(buf, "STANDARD / by Shield-77 v1.0.36", 52, 28, 0.45f, secondary, C2D_AlignLeft);
+    ui_text(buf, "STANDARD / by Shield-77 v1.0.38", 52, 28, 0.45f, secondary, C2D_AlignLeft);
     if (track_skip_locked)
         ui_text(buf, "L/R VERROUILLES", 254, 31, 0.42f,
                 ui_color(255, 209, 72), C2D_AlignLeft);
@@ -1980,65 +1981,154 @@ static void draw_options_ui(C2D_TextBuf buf) {
     const u32 cyan = ui_color(41,190,219);
     const u32 white = ui_color(232,240,248);
     const u32 secondary = ui_color(145,168,191);
-    ui_text(buf,"OPTIONS",17,13,0.58f,cyan,C2D_AlignLeft);
-    ui_text(buf,ui_language.french ? "FILTRES AUDIO" : "AUDIO FILTERS",
-            17,35,0.38f,secondary,C2D_AlignLeft);
-    ui_rect(14,52,292,1,ui_color(40,83,112));
-    for (unsigned i=0; i<7; i++) {
-        float x = 13.0f + (i % 2) * 148.0f;
-        float y = 57.0f + (i / 2) * 21.0f;
-        bool selected = i == options_selection;
-        if (selected) {
-            ui_round_rect(x,y,143,19,3,ui_color(9,145,179));
-            ui_round_rect(x,y,3,19,1,cyan);
+    ui_text(buf,"OPTIONS",17,11,0.56f,cyan,C2D_AlignLeft);
+    if (!playing) {
+        if (options_credits_open) {
+            ui_text_fit(buf,ui_language.french ? "CREDITS" : "CREDITS",18,47,282,0.58f,white);
+            ui_text_fit(buf,"Shield-77",18,82,282,0.54f,cyan);
+            ui_text_fit(buf,ui_language.french ? "Projet gratuit, temps libre." :
+                        "Free project, made in spare time.",18,117,282,0.48f,white);
+            ui_text_fit(buf,ui_language.french ? "Code avec aide de Codex." :
+                        "Code with Codex assistance.",18,151,282,0.47f,white);
+            ui_text_fit(buf,ui_language.french ? "B : retour" : "B: back",18,208,282,0.49f,cyan);
+            return;
         }
-        ui_text_fit(buf,ui_language.french ? filter_names_fr[i] : filter_names_en[i],
-                    x+10,y+1,101,0.40f,selected?white:secondary);
-        if (i == filter_profile)
-            ui_text(buf,"ON",x+136,y+2,0.32f,white,C2D_AlignRight);
+        const char *names_fr[3]={"Langue","Guide","Credits"};
+        const char *names_en[3]={"Language","Guide","Credits"};
+        for (unsigned i=0;i<3;++i) {
+            float y=54.0f+i*49.0f;
+            ui_round_rect(17,y,286,39,6,options_selection==i ?
+                          ui_color(9,145,179) : ui_color(12,30,46));
+            ui_text_fit(buf,ui_language.french ? names_fr[i] : names_en[i],
+                        28,y+8,260,0.52f,options_selection==i ? white : secondary);
+        }
+        ui_text_fit(buf,ui_language.french ? "A Ouvrir   B/SELECT Fermer" :
+                    "A Open   B/SELECT Close",17,210,286,0.44f,white);
+        return;
     }
-    ui_round_rect(13,147,145,21,3,options_selection == 7
-                  ? ui_color(9,145,179) : ui_color(12,30,46));
-    ui_round_rect(161,147,146,21,3,options_selection == 8
-                  ? ui_color(9,145,179) : ui_color(12,30,46));
+    ui_round_rect(213,10,93,22,5,options_selection==0 ?
+                  ui_color(9,145,179) : ui_color(12,30,46));
+    ui_text_fit(buf,ui_language.french ?
+                (filter_profile ? "Filtres ON" : "Filtres OFF") :
+                (filter_profile ? "Filters ON" : "Filters OFF"),
+                218,13,84,0.40f,filter_profile ? cyan : white);
+    ui_text(buf,ui_language.french ? "FILTRES" : "FILTERS",
+            17,35,0.41f,secondary,C2D_AlignLeft);
+    for (unsigned i=0;i<6;++i) {
+        unsigned profile=i+1;
+        float x=13.0f+(i%2)*148.0f, y=49.0f+(i/2)*21.0f;
+        bool selected=options_selection==profile;
+        ui_round_rect(x,y,143,19,4,selected ? ui_color(9,145,179) : ui_color(12,30,46));
+        ui_text_fit(buf,ui_language.french ? filter_names_fr[profile] : filter_names_en[profile],
+                    x+9,y+1,112,0.43f,selected ? white : secondary);
+        if (filter_profile==profile) ui_circle(x+133,y+9,4,cyan);
+    }
+    ui_rect(14,115,292,1,ui_color(40,83,112));
+    ui_text(buf,ui_language.french ? "BOOST AUDIO" : "AUDIO BOOST",
+            17,119,0.39f,secondary,C2D_AlignLeft);
+    const char *boost_labels[4]={"OFF","2x","3x","5x"};
+    for (unsigned i=0;i<4;++i) {
+        float x=13.0f+i*74.0f;
+        ui_round_rect(x,136,70,19,4,options_selection==i+7 ?
+                      ui_color(9,145,179) : ui_color(12,30,46));
+        ui_text_center(buf,boost_labels[i],x+35,137,0.43f,
+                       audio_boost_mode==i ? cyan : white);
+    }
+    ui_rect(14,160,292,1,ui_color(40,83,112));
+    ui_round_rect(13,165,145,20,4,options_selection==11 ?
+                  ui_color(9,145,179) : ui_color(12,30,46));
+    ui_round_rect(161,165,146,20,4,options_selection==12 ?
+                  ui_color(9,145,179) : ui_color(12,30,46));
     ui_text_fit(buf,ui_language.french ? "REV LIBRE" : "CUSTOM REV",
-                19,151,87,0.36f,cyan);
-    ui_text(buf,reverb_custom_enabled ? "ON" : "OFF",
-            151,151,0.36f,white,C2D_AlignRight);
+                19,168,96,0.40f,cyan);
+    ui_text(buf,reverb_custom_enabled ? "ON" : "OFF",151,168,0.40f,white,C2D_AlignRight);
     ui_text_fit(buf,ui_language.french ? "PROLONGEE" : "LONG TAIL",
-                167,151,93,0.36f,cyan);
-    ui_text(buf,reverb_long_enabled ? "ON" : "OFF",
-            299,151,0.36f,white,C2D_AlignRight);
-    unsigned shown = touch_reverb_dragging ? touch_reverb_preview :
-                     reverb_custom_enabled ? reverb_custom_percent : reverb_mode;
+                167,168,98,0.40f,cyan);
+    ui_text(buf,reverb_long_enabled ? "ON" : "OFF",299,168,0.40f,white,C2D_AlignRight);
+    unsigned shown=touch_reverb_dragging ? touch_reverb_preview :
+                   reverb_custom_enabled ? reverb_custom_percent : reverb_mode;
     if (reverb_custom_enabled) {
         char amount[32];
         snprintf(amount,sizeof(amount),ui_language.french ? "Intensite %u%%" : "Intensity %u%%",shown);
-        ui_text_fit(buf,amount,22,171,276,0.36f,secondary);
-        ui_round_rect(22,190,276,10,4,ui_color(24,48,68));
-        if (shown) ui_round_rect(22,190,276.0f*shown/100,10,4,cyan);
-        ui_circle(22+276.0f*shown/100,195,7,white);
+        ui_text_fit(buf,amount,22,187,276,0.39f,secondary);
+        ui_round_rect(22,204,276,9,4,ui_color(24,48,68));
+        if (shown) ui_round_rect(22,204,276.0f*shown/100,9,4,cyan);
+        ui_circle(22+276.0f*shown/100,208,6,white);
     } else {
-        for (unsigned i=0; i<4; i++) {
+        for (unsigned i=0;i<4;++i) {
             float x=22.0f+i*69.0f;
-            ui_text_fit(buf,reverb_names[i],x+2,171,64,0.32f,secondary);
-            ui_round_rect(x,190,67,10,3,i==shown?cyan:ui_color(24,48,68));
+            ui_text_fit(buf,reverb_names[i],x+2,187,64,0.37f,secondary);
+            ui_round_rect(x,204,67,9,3,i==shown ? cyan : ui_color(24,48,68));
         }
     }
-    ui_rect(14,210,292,1,ui_color(40,83,112));
-    ui_text_fit(buf,ui_language.french
-        ? "A Choisir   B/SELECT Fermer"
-        : "A Select   B/SELECT Close",
-        16,215,286,0.34f,white);
+    ui_text_fit(buf,ui_language.french ? "A Choisir  B/SELECT Fermer" :
+                "A Select  B/SELECT Close",16,218,286,0.35f,white);
 }
 
+static void choose_language_at_startup(void);
+
 static void options_activate(void) {
-    if (options_selection == 7)
-        reverb_custom_enabled = !reverb_custom_enabled;
-    else if (options_selection == 8)
-        reverb_long_enabled = !reverb_long_enabled;
-    else filter_profile = options_selection;
+    if (!playing) {
+        if (options_selection==0) {
+            options_open=false;
+            force_language_selection=true;
+            choose_language_at_startup();
+            force_language_selection=false;
+            guide_page=1;
+        } else if (options_selection==1) {
+            options_open=false; guide_page=1;
+        } else options_credits_open=true;
+    } else if (options_selection==0) {
+        if (filter_profile) {
+            filter_last_profile=filter_profile;
+            filter_profile=0;
+        } else filter_profile=filter_last_profile ? filter_last_profile : 1;
+    } else if (options_selection<=6) {
+        filter_profile=options_selection;
+        filter_last_profile=filter_profile;
+    } else if (options_selection<=10) {
+        audio_boost_mode=options_selection-7;
+        playback_status=audio_boost_mode==3 ? "Boost audio 500%" :
+                        audio_boost_mode==2 ? "Boost audio 300%" :
+                        audio_boost_mode==1 ? "Boost audio 200%" : "Boost audio desactive";
+    } else if (options_selection==11) reverb_custom_enabled=!reverb_custom_enabled;
+    else if (options_selection==12) reverb_long_enabled=!reverb_long_enabled;
     ui_dirty = true;
+}
+
+static void draw_bottom_guide_ui(C2D_TextBuf buf) {
+    const u32 cyan=ui_color(41,190,219), white=ui_color(232,240,248);
+    const u32 secondary=ui_color(180,207,228);
+    char page[20]; snprintf(page,sizeof(page),"%u/3",guide_page);
+    ui_text(buf,ui_language.french ? "GUIDE" : "GUIDE",18,17,0.64f,cyan,C2D_AlignLeft);
+    ui_text(buf,page,296,19,0.52f,secondary,C2D_AlignRight);
+    ui_rect(17,48,286,1,ui_color(40,83,112));
+    if (guide_page==1) {
+        ui_text_fit(buf,"MP3 / OGG",20,67,280,0.58f,white);
+        ui_text_fit(buf,ui_language.french ? "A la racine de la SD" : "In the SD root",
+                    20,101,280,0.52f,white);
+        ui_text_fit(buf,ui_language.french ? "ou dans des dossiers." : "or inside folders.",
+                    20,130,280,0.52f,white);
+        ui_text_fit(buf,ui_language.french ? "Un dossier = une bibliotheque" :
+                    "One folder = one library",20,162,280,0.48f,cyan);
+    } else if (guide_page==2) {
+        ui_text_fit(buf,ui_language.french ? "A : lire / pause" : "A: play / pause",
+                    20,69,280,0.55f,white);
+        ui_text_fit(buf,ui_language.french ? "B : arreter / retour" : "B: stop / back",
+                    20,106,280,0.55f,white);
+        ui_text_fit(buf,ui_language.french ? "L/R : piste precedente / suivante" :
+                    "L/R: previous / next track",20,143,280,0.48f,white);
+    } else {
+        ui_text_fit(buf,ui_language.french ? "SELECT : filtres, effets, boost" :
+                    "SELECT: filters, effects, boost",20,70,280,0.51f,white);
+        ui_text_fit(buf,ui_language.french ? "HOME : menu de la console" :
+                    "HOME: system menu",20,111,280,0.52f,white);
+        ui_text_fit(buf,ui_language.french ? "START : quitter" : "START: quit",
+                    20,152,280,0.52f,white);
+    }
+    ui_rect(17,195,286,1,ui_color(40,83,112));
+    ui_text_fit(buf,ui_language.french ? "B Precedent    A Continuer" :
+                "B Previous    A Continue",19,207,282,0.51f,cyan);
 }
 
 static void draw_bottom_ui(void) {
@@ -2056,6 +2146,8 @@ static void draw_bottom_ui(void) {
     ui_round_rect(3,3,314,234,7,border);
     ui_round_rect(4,4,312,232,6,ui_color(12,30,46));
     ui_round_rect(8,8,304,224,4,panel);
+
+    if (guide_page) { draw_bottom_guide_ui(buf); return; }
 
     if (options_open) {
         draw_options_ui(buf);
@@ -2415,12 +2507,15 @@ static void upload_cover_texture(void) {
     C3D_TexFlush(&cover_texture);
 }
 static void change_brightness(int delta) {
-    if (!lcd_ready) return;
     int next = brightness_level + delta;
     if (next < 1) next = 1;
     if (next > 5) next = 5;
     if (next == brightness_level) return;
-    if (R_SUCCEEDED(GSPLCD_SetBrightness(GSPLCD_SCREEN_BOTH, (u32)next))) {
+    // Do not keep gsp::Lcd open while APT suspends us for HOME.
+    if (R_FAILED(gspLcdInit())) return;
+    bool changed = R_SUCCEEDED(GSPLCD_SetBrightness(GSPLCD_SCREEN_BOTH, (u32)next));
+    gspLcdExit();
+    if (changed) {
         brightness_level = next;
         brightness_changed = true;
         ui_dirty = true;
@@ -2558,7 +2653,7 @@ int main(void) {
     gfxInitDefault();
     hidScanInput();
     force_language_selection = (hidKeysHeld() & KEY_X) != 0;
-    aptSetHomeAllowed(false);
+    aptSetHomeAllowed(true);
     fs_service_ready = R_SUCCEEDED(fsInit());
     update_sd_storage();
     ptmu_service_ready = R_SUCCEEDED(ptmuInit());
@@ -2593,7 +2688,6 @@ int main(void) {
         "sdmc:/3ds/ShieldDJStandard/ui-language-v1.dat",cfgu_service_ready);
     (void)ui_renderer_init();
     ui_boot_begin();
-    lcd_ready = R_SUCCEEDED(gspLcdInit());
 
     Result audio_result = ndspInit();
     audio_ready = R_SUCCEEDED(audio_result);
@@ -2636,10 +2730,9 @@ int main(void) {
     int last_library_touch_entry = -1;
 
     for (;;) {
-        // Sleep remains enabled for lid-close playback policy. HOME stays
-        // blocked; do not force APT's jump-to-HOME transition here because
-        // the app's POWER handling previously froze the console.
+        // Keep lid-close playback; APT handles the HOME suspend/resume transition.
         aptHandleSleep();
+        aptHandleJumpToHome();
         if (aptShouldClose()) break;
         bool screen_active = aptIsActive();
         if (screen_active && !ui_was_active) ui_dirty = true;
@@ -2692,16 +2785,6 @@ int main(void) {
         u32 down = hidKeysDown() & ~CIRCLE_PAD_KEYS;
         u32 held = hidKeysHeld() & ~CIRCLE_PAD_KEYS;
         u32 released = hidKeysUp() & ~CIRCLE_PAD_KEYS;
-        if (aptCheckHomePressRejected() && now - last_home_toggle_ms >= 350) {
-            audio_boost_mode = (audio_boost_mode + 1) % 4;
-            last_home_toggle_ms = now;
-            playback_error = false;
-            playback_status = audio_boost_mode == 3 ? "Boost audio 500%" :
-                              audio_boost_mode == 2 ? "Boost audio 300%" :
-                              audio_boost_mode == 1 ? "Boost audio 200%" :
-                                                      "Boost audio desactive";
-            ui_dirty = true;
-        }
         if(guide_page) {
             if(down & KEY_START) break;
             if((down & KEY_B) && guide_page>1) {
@@ -2721,34 +2804,42 @@ int main(void) {
         if (down & KEY_START) break;
         if (down & KEY_SELECT) {
             options_open = !options_open;
-            options_selection = filter_profile;
+            options_credits_open = false;
+            options_selection = 0;
             touch_seek_dragging = false;
             touch_reverb_dragging = false;
             ui_dirty = true;
             down = held = released = 0;
         } else if (options_open) {
+            if (!playing && options_selection > 2) options_selection = 0;
             if (down & KEY_B) {
-                options_open = false;
-            } else if (down & KEY_UP) {
-                if (options_selection == 8) options_selection = 7;
-                else if (options_selection == 7) options_selection = 6;
-                else if (options_selection >= 2) options_selection -= 2;
-            } else if (down & KEY_DOWN) {
-                if (options_selection >= 7) options_selection = 8;
-                else if (options_selection >= 5) options_selection = 7;
-                else options_selection += 2;
-            } else if (down & KEY_LEFT) {
-                if (options_selection == 8) options_selection = 7;
-                else if (options_selection < 7 && (options_selection & 1)) options_selection--;
-            } else if (down & KEY_RIGHT) {
-                if (options_selection == 7) options_selection = 8;
-                else if (!(options_selection & 1) && options_selection < 6) options_selection++;
-            } else if (down & KEY_A) {
+                if (options_credits_open) options_credits_open = false;
+                else options_open = false;
+            } else if (!options_credits_open && (down & KEY_UP)) {
+                if (options_selection > 0) options_selection--;
+            } else if (!options_credits_open && (down & KEY_DOWN)) {
+                unsigned last = playing ? 12 : 2;
+                if (options_selection < last) options_selection++;
+            } else if (!options_credits_open && (down & KEY_LEFT)) {
+                if (options_selection > 0) options_selection--;
+            } else if (!options_credits_open && (down & KEY_RIGHT)) {
+                unsigned last = playing ? 12 : 2;
+                if (options_selection < last) options_selection++;
+            } else if (!options_credits_open && (down & KEY_A)) {
                 options_activate();
             } else if (down & KEY_TOUCH) {
                 touchPosition touch;
                 hidTouchRead(&touch);
-                if (touch.py >= 170 && touch.py <= 207) {
+                if (!playing) {
+                    if (options_credits_open) {
+                        if (touch.py >= 195) options_credits_open = false;
+                    } else if (touch.px >= 17 && touch.px < 303 &&
+                               touch.py >= 54 && touch.py < 191) {
+                        options_selection = (touch.py - 54) / 49;
+                        options_activate();
+                    }
+                } else if (touch.py >= 186 && touch.py <= 216 &&
+                           touch.px >= 16 && touch.px <= 304) {
                     touch_reverb_dragging = true;
                     touch_reverb_custom_drag = reverb_custom_enabled;
                     touch_reverb_preview = touch_reverb_custom_drag
@@ -2757,19 +2848,27 @@ int main(void) {
                         : (touch.px <= 22 ? 0 : touch.px >= 298 ? 3 :
                            (unsigned)(touch.px - 22) / 69);
                     ui_dirty = true;
-                } else if (touch.py >= 147 && touch.py < 169 &&
-                           touch.px >= 13 && touch.px < 307) {
-                    options_selection = touch.px < 160 ? 7 : 8;
+                } else if (touch.py >= 10 && touch.py < 33 &&
+                           touch.px >= 213 && touch.px < 307) {
+                    options_selection = 0;
                     options_activate();
-                } else if (touch.py >= 57 && touch.py < 139 &&
-                           touch.px >= 13 && touch.px < 304) {
-                    unsigned row = (touch.py - 57) / 21;
+                } else if (touch.py >= 49 && touch.py < 110 &&
+                           touch.px >= 13 && touch.px < 307) {
+                    unsigned row = (touch.py - 49) / 21;
                     unsigned col = touch.px >= 161 ? 1 : 0;
-                    unsigned index = row * 2 + col;
-                    if (index < 7) {
+                    unsigned index = row * 2 + col + 1;
+                    if (index <= 6) {
                         options_selection = index;
                         options_activate();
                     }
+                } else if (touch.py >= 136 && touch.py < 156 &&
+                           touch.px >= 13 && touch.px < 309) {
+                    options_selection = 7 + (touch.px - 13) / 74;
+                    options_activate();
+                } else if (touch.py >= 165 && touch.py < 186 &&
+                           touch.px >= 13 && touch.px < 307) {
+                    options_selection = touch.px < 160 ? 11 : 12;
+                    options_activate();
                 }
             }
             if (touch_reverb_dragging && (held & KEY_TOUCH)) {
@@ -3007,9 +3106,6 @@ int main(void) {
     if (battery_service_ready) mcuHwcExit();
     ui_renderer_exit();
     if (cfgu_service_ready) cfguExit();
-    if (lcd_ready) {
-        gspLcdExit();
-    }
     for (int i = 0; i < AUDIO_BLOCK_COUNT; i++) {
         if (blocks[i].pcm) linearFree(blocks[i].pcm);
     }

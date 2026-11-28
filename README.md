@@ -2,7 +2,7 @@
 
 Lecteur MP3 et OGG pour 3DS, pensé pour Old 3DS et 2DS. Il affiche les pochettes, permet de parcourir la carte SD et propose pitch, profils de basses, réverbération, filtres audio et lecture aléatoire. Le vinyle animé distingue Standard de [SHIELD DJ Lite](https://github.com/Shield-77/Shield-DJ-Lite), qui propose les mêmes fonctions audio dans une interface plus légère.
 
-**État du code public :** le Makefile indique v1.0.36, tandis que le CIA proposé est v1.0.38. Les sources exactes de la dernière release restent à synchroniser ; voir aussi les différences de bannière décrites plus bas.
+**État du code public :** le code C provient du dossier local de v1.0.38, dont le CIA est identique octet pour octet à celui de la release publique (SHA-256). Le Makefile indique la version interne **1062**. Cette comparaison ne remplace pas une reconstruction indépendante ; la différence de son de bannière est décrite plus bas.
 
 ## Télécharger / Download
 
@@ -30,7 +30,7 @@ L'application affiche un guide au premier lancement. Les réglages audio extrêm
 
 ## Code source et licences
 
-Le code de la v1.0.36 est dans [`source/`](source/) et [`include/`](include/). Les visuels et polices nécessaires à la compilation sont dans [`assets/`](assets/). Installer devkitPro avec devkitARM, libctru, citro2d/citro3d et les portlibs audio/image, puis lancer `make`. `makerom` et `bannertool` doivent être obtenus séparément ; `MAKEROM` permet de choisir le chemin de makerom. La bannière du **source public** utilise un son silencieux, afin de ne pas redistribuer un effet sonore dont les droits ne sont pas documentés. Le CIA de la release publiée n'est pas modifié.
+Le code de la v1.0.38 est dans [`source/`](source/) et [`include/`](include/). Les visuels et polices nécessaires à la compilation sont dans [`assets/`](assets/). Installer devkitPro avec devkitARM, libctru, citro2d/citro3d et les portlibs audio/image, puis lancer `make`. `makerom` et `bannertool` doivent être obtenus séparément ; `MAKEROM` permet de choisir le chemin de makerom. La bannière du **source public** utilise un son silencieux, afin de ne pas redistribuer un effet sonore dont les droits ne sont pas documentés. Le CIA de la release publiée n'est pas modifié.
 
 La licence principale du code est la [GNU GPLv3](LICENSE). Le décodeur minimp3 a sa licence [CC0 séparée](LICENSES/minimp3-CC0.txt) ; les polices ont leurs propres licences dans `assets/fonts/`. Les logos et le nom SHIELD identifient le projet d'origine et ne sont pas accordés par la licence du code. Présenter clairement toute version modifiée comme telle.
 

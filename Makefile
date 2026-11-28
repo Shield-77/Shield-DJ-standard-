@@ -12,8 +12,8 @@ DATA        :=
 GRAPHICS    :=
 ROMFS       :=
 
-APP_VERSION     := v1.0.36
-APP_CIA_VERSION := 1060
+APP_VERSION     := v1.0.38
+APP_CIA_VERSION := 1062
 APP_TITLE       := Shield DJ Standard by Shield-77
 APP_DESCRIPTION := Lecteur MP3 et OGG avec pochette et interface avancee
 APP_AUTHOR      := Shield-77
