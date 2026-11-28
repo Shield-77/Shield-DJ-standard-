@@ -2,6 +2,8 @@
 
 Lecteur MP3 et OGG pour 3DS, pensé pour Old 3DS et 2DS. Il affiche les pochettes, permet de parcourir la carte SD et propose pitch, profils de basses, réverbération, filtres audio et lecture aléatoire. Le vinyle animé distingue Standard de [SHIELD DJ Lite](https://github.com/Shield-77/Shield-DJ-Lite), qui propose les mêmes fonctions audio dans une interface plus légère.
 
+**État du code public :** le Makefile indique v1.0.36, tandis que le CIA proposé est v1.0.38. Les sources exactes de la dernière release restent à synchroniser ; voir aussi les différences de bannière décrites plus bas.
+
 ## Télécharger / Download
 
 **[ShieldDJStandard.cia (v1.0.38)](https://github.com/Shield-77/Shield-DJ-standard-/releases/download/v1.0.38/ShieldDJStandard.cia)** · [Toutes les releases](https://github.com/Shield-77/Shield-DJ-standard-/releases)
